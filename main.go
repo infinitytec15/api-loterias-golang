@@ -150,7 +150,7 @@ func enviarParaDiscord(result LoteriaResult, pdfFile string) error {
 		"color":       0x00ff00, // Verde
 		"fields": []map[string]interface{}{
 			{"name": "Concurso", "value": fmt.Sprintf("%d", result.Numero), "inline": true},
-			{"name": "Data de Apuração", "value": result.DataApuracao, "inline": true},
+			{"name": "Data de Apuracao", "value": result.DataApuracao, "inline": true},
 			{"name": "Dezenas Sorteadas", "value": fmt.Sprintf("%v", result.DezenasSorteadas), "inline": false},
 			{"name": "Tipo de Jogo", "value": result.TipoJogo, "inline": true},
 		},
