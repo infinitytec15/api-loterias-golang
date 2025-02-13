@@ -13,6 +13,11 @@ Este projeto tem como objetivo consultar os resultados de loterias da Caixa Econ
 - **Geração de PDFs**: Cria um PDF com os resultados da loteria.
 - **Notificações no Discord**: Envia os resultados para um canal do Discord usando webhooks, tanto em formato de embed quanto em PDF.
 
+## IMAGEM 
+
+![image](https://github.com/user-attachments/assets/67ea7379-013e-41e5-a270-4c2088b11010)
+
+
 ---
 
 ## 📋 Pré-requisitos
