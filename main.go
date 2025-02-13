@@ -28,16 +28,15 @@ type LoteriaResult struct {
 }
 
 var (
-	db *sql.DB
+	db             *sql.DB
+	ultimoConcurso int
 )
 
 func init() {
-
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Erro ao carregar .env")
 	}
-
 	db, err = sql.Open("sqlite", "./bancoloteria.sqlite3")
 	if err != nil {
 		log.Fatal(err)
@@ -56,10 +55,13 @@ func init() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	ultimoConcurso = 0
 }
 
 func main() {
 	for {
+
 		result, err := consultarLoteria("federal")
 		if err != nil {
 			log.Println("Erro ao consultar loteria:", err)
@@ -72,15 +74,23 @@ func main() {
 			log.Println("Erro ao salvar no banco:", err)
 		}
 
-		pdfFile := gerarPDF(result)
-		log.Println("PDF gerado:", pdfFile)
-
-		err = enviarParaDiscord(result, pdfFile)
+		err = enviarEmbedDiscord(result)
 		if err != nil {
-			log.Println("Erro ao enviar para o Discord:", err)
+			log.Println("Erro ao enviar embed para o Discord:", err)
 		}
 
-		time.Sleep(1 * time.Minute)
+		if result.Numero != ultimoConcurso {
+			pdfFile := gerarPDF(result)
+			log.Println("PDF gerado:", pdfFile)
+			err = enviarPDFDiscord(pdfFile)
+			if err != nil {
+				log.Println("Erro ao enviar PDF para o Discord:", err)
+			}
+
+			ultimoConcurso = result.Numero
+		}
+
+		time.Sleep(60 * time.Second)
 	}
 }
 
@@ -138,19 +148,19 @@ func gerarPDF(result LoteriaResult) string {
 	return pdfFile
 }
 
-func enviarParaDiscord(result LoteriaResult, pdfFile string) error {
-	webhookURL := os.Getenv("DISCORD_WEBHOOK_URL")
+func enviarEmbedDiscord(result LoteriaResult) error {
+	webhookURL := os.Getenv("DISCORD_WEBHOOK_URL_EMBED")
 	if webhookURL == "" {
-		return fmt.Errorf("DISCORD_WEBHOOK_URL não configurada")
+		return fmt.Errorf("DISCORD_WEBHOOK_URL_EMBED não configurada")
 	}
 
 	embed := map[string]interface{}{
 		"title":       "Resultado da Loteria",
 		"description": "Confira os resultados mais recentes da loteria.",
-		"color":       0x00ff00, // Verde
+		"color":       0x00ff00,
 		"fields": []map[string]interface{}{
 			{"name": "Concurso", "value": fmt.Sprintf("%d", result.Numero), "inline": true},
-			{"name": "Data de Apuracao", "value": result.DataApuracao, "inline": true},
+			{"name": "Data de Apuração", "value": result.DataApuracao, "inline": true},
 			{"name": "Dezenas Sorteadas", "value": fmt.Sprintf("%v", result.DezenasSorteadas), "inline": false},
 			{"name": "Tipo de Jogo", "value": result.TipoJogo, "inline": true},
 		},
@@ -176,12 +186,20 @@ func enviarParaDiscord(result LoteriaResult, pdfFile string) error {
 		return fmt.Errorf("erro ao enviar embed: HTTP %d - %s", resp.StatusCode, string(body))
 	}
 
+	return nil
+}
+
+func enviarPDFDiscord(pdfFile string) error {
+	webhookURL := os.Getenv("DISCORD_WEBHOOK_URL_PDF")
+	if webhookURL == "" {
+		return fmt.Errorf("DISCORD_WEBHOOK_URL_PDF não configurada")
+	}
+
 	file, err := os.Open(pdfFile)
 	if err != nil {
 		return fmt.Errorf("erro ao abrir arquivo PDF: %v", err)
 	}
 	defer file.Close()
-
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 	part, err := writer.CreateFormFile("file", pdfFile)
@@ -201,7 +219,7 @@ func enviarParaDiscord(result LoteriaResult, pdfFile string) error {
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
 	client := &http.Client{}
-	resp, err = client.Do(req)
+	resp, err := client.Do(req)
 	if err != nil {
 		return fmt.Errorf("erro ao enviar arquivo: %v", err)
 	}
